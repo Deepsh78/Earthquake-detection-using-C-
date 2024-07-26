@@ -1,0 +1,89 @@
+#include <Wire.h>
+#include <math.h>
+
+// Pins
+int xpin = A3; // analog pin 0
+int ypin = A2; // analog pin 1
+int zpin = A1; // analog pin 2
+int buzzer = 5; // buzzer pin
+
+// Sensor Values
+int xsample = 0;
+int ysample = 0;
+int zsample = 0;
+int xread = 0;
+int yread = 0;
+int zread = 0;
+
+// Threshold for buzzer
+int threshold = 5;
+
+// Variables for tracking buzzer state
+unsigned long buzzerStartTime = 0;
+bool buzzerActive = false;
+
+// Functions
+void setup() {
+ Serial.begin(9600);
+ pinMode(buzzer, OUTPUT);
+}
+
+void loop() {
+ // Sample values from sensor
+ xsample = analogRead(xpin);
+ ysample = analogRead(ypin);
+ zsample = analogRead(zpin);
+
+ // Calculate sensor values
+ int x = xsample - 512;
+ int y = ysample - 512;
+ int z = zsample - 512;
+
+ // Calculate sensor angle
+ float pitch = asin(float(y) / sqrt(x * x + y * y + z * z)) * 180 / M_PI;
+ float roll = asin(float(x) / sqrt(x * x + y * y + z * z)) * 180 / M_PI;
+
+ // Read values from sensor
+ xread = analogRead(xpin);
+ yread = analogRead(ypin);
+ zread = analogRead(zpin);
+
+ // Display values on serial monitor
+ Serial.print("Pitch = ");
+ Serial.print(pitch);
+ Serial.print("   Roll = ");
+ Serial.println(roll);
+
+ // Detect if there's a significant change in the acceleration
+ int deltaX = abs(xread - xsample);
+ int deltaY = abs(yread - ysample);
+ int deltaZ = abs(zread - zsample);
+
+ // If the change in acceleration is beyond the threshold, activate the buzzer
+ if (deltaX > threshold || deltaY > threshold || deltaZ > threshold) {
+    if (!buzzerActive) {
+        buzzerStartTime = millis();
+        buzzerActive = true;
+    }
+ }
+ else {
+    buzzerActive = false;
+    noTone(buzzer);
+    Serial.println("No Vibration Detected");
+ }
+
+ // Buzz the buzzer if the acceleration is beyond the threshold
+ if (buzzerActive) {
+    if (millis() - buzzerStartTime < 500) {
+        tone(buzzer, 494, 500);
+        Serial.println("Vibration Detected");
+    }
+    else {
+        buzzerActive = false;
+        noTone(buzzer);
+    }
+ }
+
+ // Wait before taking the next reading
+ delay(100);
+}
